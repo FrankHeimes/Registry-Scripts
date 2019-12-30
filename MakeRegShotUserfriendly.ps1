@@ -1,4 +1,4 @@
-﻿# Convert a REG file into a more readable form, Version 1.0.20013.0
+﻿# Convert a RegShot difference file into a more readable form, Version 1.0.20013.0
 #
 # MIT License
 #
@@ -27,15 +27,18 @@ param ([Parameter(Mandatory=$true)] [string]$file)
 # Always make sure all variables are defined and all best practices are followed.
 Set-StrictMode -version Latest
 
+# Pattern for files, folders, and registry keys considered to be irrelevant
+$IrrelevantPattern = '(HKCU|HKLM|HKU).+(\\MRU|MRU\\|\\MUI|MUI\\|\\Bags|RecentDocs|CurrentVersion\\Explorer|Services\\bam|CurrentVersion\\CloudStore|DRIVERS\\DriverDatabase|CurrentVersion\\DeliveryOptimization|Storage\\microsoft.microsoftedge)'
+
 # Convert a hex string from registry to a readable UNICODE string
 function UnicodeFromHex([string] $hex)
 {
     $ErrorActionPreference = 'SilentlyContinue'
 
     # Only consider binary data to be a string if it has at least two unicode characters and is zero terminated
-    if ($hex.EndsWith('00,00') -and $hex.Length -ge 4)
+    if ($hex.EndsWith('00 00') -and $hex.Length -ge 4)
     {
-        '"' + ((($hex -ireplace '([0-9A-F]{2}),([0-9A-F]{2})', '0x$2$1' -split ',' | %{ [char][int64]$_ }) -join '') -replace '\0$') + '"'
+        ($hex -ireplace '([0-9A-F]{2}) ([0-9A-F]{2})', '0x$2$1' -split ' ' | %{ [char][int64]$_ }) -join ''
     }
     else
     {
@@ -46,7 +49,7 @@ function UnicodeFromHex([string] $hex)
 # Concatenate multiple lines of hex codes into a single line
 filter RemoveContinuation
 {
-    $_ -replace ',\\\r\n *', ','
+    $_ -ireplace '\r\n([0-9A-F]?[ ]?([0-9A-F]{2} )+([0-9A-F]{2}))', '$1'
 }
 
 # Split input into array of lines
@@ -55,10 +58,16 @@ filter SplitLines
     $_ -split '\r\n'
 }
 
+# Return only relevant registry keys and files
+filter Relevant
+{
+    $_ | ? { $_ -notmatch $IrrelevantPattern }
+}
+
 # Convert DWord entries into hex value and separate int value in braces
 filter ConvertDWord
 {
-    [regex]::Replace($_, '=dword:([0-9A-Fa-f]+)', {
+    [regex]::Replace($_, ': 0x([0-9A-Fa-f]+)$', {
         param($match)
         [int64]$value = '0x' + $match.Groups[1].Value; "$(if ($value -lt 10) { '={0}' } else { '=0x{0:X} ({0})' })" -f $value
     })
@@ -67,17 +76,17 @@ filter ConvertDWord
 # Make the entire line readable by converting hex sub strings
 filter ConvertHexCodes
 {
-    [regex]::Replace($_, 'hex\([0-9]\):(([0-9A-Fa-f]{2},)+([0-9A-Fa-f]{2}))', { param($match) "$(UnicodeFromHex $match.Groups[1].Value)" })
+    [regex]::Replace($_, '(([0-9A-Fa-f]{2} )+([0-9A-Fa-f]{2}))', {param($match) "$(UnicodeFromHex $match.Groups[1].Value)"})
 }
 
 # Write non-printable characters as hex codes again
 filter MakePrintable
 {
-    [regex]::Replace($_, '([\u0000-\u001F\u00FF-\uFFFF])', { param($match) "$('\u{0:X4}' -f [int64][char]$match.Groups[1].Value)" })
+    [regex]::Replace($_, '([\u0000-\u001F\u00FF-\uFFFF])', {param($match) "$('\u{0:X4}' -f [int64][char]$match.Groups[1].Value)"})
 }
 
 $file = Get-ChildItem $file
 
 # Note: The -Encoding flag may need to be adjusted if the input file is in another encoding
-Get-Content -Raw -Encoding UTF8 ($file.FullName) | RemoveContinuation | SplitLines | ConvertDWord | ConvertHexCodes | MakePrintable |`
+Get-Content -Raw -Encoding Unicode ($file.FullName) | RemoveContinuation | SplitLines | ConvertDWord | Relevant | ConvertHexCodes | MakePrintable |`
 Set-Content -Encoding UTF8 ([io.path]::ChangeExtension($file, '.Userfriendly' + $file.Extension))
