@@ -31,14 +31,18 @@ creates a more readable version of it with the string `.Userfriendly` inserted i
 
 It particularly performs the following conversions:
   * Convert a `dword` value into the notation `0xNNN` and append its decimal value.
+  * Use a simple syntax for a `dword` value between 0 and 9 (inclusive).
   * Concatenate all continued lines into a single line.
   * Convert a hex array to a readable unicode strings, provided it contains at least 2 unicode characters and is zero terminated.
   * Convert a non-printable unicode character into its representation `\uNNNN`.
 
-### Example
+### Examples
 
   * **Original:** `"AppIDFlags"=dword:00000408`\
     **Converted:** `"AppIDFlags"=0x408 (1032)`
+
+  * **Original:** `"Threading"=dword:00000000`\
+    **Converted:** `"Threading"=0`
 
   * **Original:** `"LaunchPermission"=hex:01,00,14,80,...,00,00,30,00,\` \
                 `00,00,02,00,...,00,00,\` \
