@@ -26,8 +26,8 @@ SOFTWARE.
 The scripts in this directory make `REG` files, used by `RegEdit`, and comparison results produced by [RegShot](https://sourceforge.net/projects/regshot) more readable.
 
 ## MakeRegUserfriendly.ps1
-This script takes a file object containing a Windows registry file (`.reg`) and
-creates a more readable version of it with the string `.Userfriendly` inserted in its name.
+This script takes a Windows registry file (`.reg`) and creates a more readable version of it with the
+string `.Userfriendly` inserted in its name.
 
 It particularly performs the following conversions:
   * Convert a `dword` value into the notation `0xNNN` and append its decimal value.
@@ -53,6 +53,13 @@ It particularly performs the following conversions:
                 `00,5c,00,53,00,79,00,73,00,57,00,4f,00,57,00,36,00,34,00,5c,00,70,00,72,00,\` \
                 `65,00,76,00,68,00,6f,00,73,00,74,00,2e,00,65,00,78,00,65,00,00,00`\
     **Converted:** `"DllSurrogate"="C:\Windows\SysWOW64\prevhost.exe"`
+
+## MakeRegShotUserfriendly.ps1
+This script takes a difference file produced by [RegShot](https://sourceforge.net/projects/regshot)
+and performs the same conversions on it as `MakeRegUserfriendly.ps1` does.
+
+Additionally, it filters out irrelevant registry keys and file names that match the pattern
+specified in the variable `$IrrelevantPattern`.
 
 ## License
 
